@@ -64,9 +64,12 @@
 
                 <div class="form-group">
                     <label for="message">How can we help you?</label>
-                    <textarea id="message" name="message" rows="6" maxlength="200" required></textarea>
+                    <!-- --- ADDED maxlength and aria-describedby --- -->
+                    <textarea id="message" name="message" rows="6" required maxlength="200" aria-describedby="message-limit"></textarea>
+                    <!-- --- ADDED Character counter --- -->
+                    <div id="message-limit" class="char-counter">0 / 200</div>
                 </div>
-                
+
                 <!-- This hidden field tells Formspree which email to use for the auto-response -->
                 <input type="hidden" name="_replyto" value="email">
                 
@@ -86,7 +89,94 @@
             <p>&copy; 2025 Vcare. All rights reserved. Togetherness maintaining individual Privacy.</p>
         </div>
     </footer>
+<script>
+        const form = document.getElementById('contact-form');
+        const statusMessage = document.getElementById('form-status');
+        const submitButton = document.getElementById('submit-button');
+        
+        // --- ADDED ---
+        // Character counter logic
+        const messageInput = document.getElementById('message');
+        const messageLimit = document.getElementById('message-limit');
+        const maxLength = 200;
+
+        messageInput.addEventListener('input', () => {
+            const currentLength = messageInput.value.length;
+            messageLimit.textContent = `${currentLength} / ${maxLength}`;
+            
+            if (currentLength > maxLength) {
+                messageLimit.classList.add('error');
+            } else {
+                messageLimit.classList.remove('error');
+            }
+        });
+        // --- END ADDED ---
+
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Sending...';
+            statusMessage.style.display = 'none';
+
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                message: messageInput.value, // Use the variable from above
+            };
+
+            // --- ADDED ---
+            // Client-side validation check
+            if (formData.message.length > maxLength) {
+                statusMessage.textContent = 'Your message must be 200 characters or less.';
+                statusMessage.className = 'status-error';
+                statusMessage.style.display = 'block';
+                
+                // Re-enable button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Send Message';
+                return; // Stop the form submission
+            }
+            // --- END ADDED ---
+
+            try {
+                // This path is still correct!
+                const response = await fetch('/api/send-mail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusMessage.textContent = "Message sent successfully! We'll be in touch soon.";
+                    statusMessage.className = 'status-success';
+                    form.reset(); 
+                    // Reset character counter on success
+                    messageLimit.textContent = `0 / ${maxLength}`;
+                    messageLimit.classList.remove('error');
+                } else {
+                    // Show server-side error (e.g., if validation failed there)
+                    statusMessage.textContent = result.message || 'Error sending message. Please try again later.';
+                    statusMessage.className = 'status-error';
+                }
+
+            } catch (error) {
+                console.error('Fetch Error:', error);
+                statusMessage.textContent = 'A network error occurred. Please check your connection.';
+                statusMessage.className = 'status-error';
+            } finally {
+                statusMessage.style.display = 'block';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Send Message';
+            }
+        });
+    </script>
 
 </body>
 </html>
-
